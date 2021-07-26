@@ -44,19 +44,6 @@ export default class ConsoleRunner {
     });
   }
 
-  getLocationForPostCode(postcode) {
-    return this.makeGetRequest(
-      POSTCODES_BASE_URL,
-      `postcodes/${postcode}`,
-      []
-    ).then((responseBody) => {
-      return {
-        latitude: JSON.parse(responseBody).result.latitude,
-        longitude: JSON.parse(responseBody).result.longitude,
-      };
-    });
-  }
-
   makeGetRequest(baseUrl, endpoint, parameters) {
     const url = this.buildUrl(baseUrl, endpoint, parameters);
     return new Promise(function (resolve, reject) {
@@ -72,42 +59,52 @@ export default class ConsoleRunner {
     });
   }
 
-  getNearestStopPoints(latitude, longitude, count) {
-    return this.makeGetRequest(TFL_BASE_URL, `StopPoint`, [
+  async getLocationForPostCode(postcode) {
+    const responseBody = await this.makeGetRequest(
+      POSTCODES_BASE_URL,
+      `postcodes/${postcode}`,
+      []
+    );
+    return {
+      latitude: JSON.parse(responseBody).result.latitude,
+      longitude: JSON.parse(responseBody).result.longitude,
+    };
+  }
+
+  async getNearestStopPoints(latitude, longitude, count) {
+    const responseBody = await this.makeGetRequest(TFL_BASE_URL, `StopPoint`, [
       { name: "stopTypes", value: "NaptanPublicBusCoachTram" },
       { name: "lat", value: latitude },
       { name: "lon", value: longitude },
       { name: "radius", value: 1000 },
       { name: "app_id", value: "" /* Enter your app id here */ },
       { name: "app_key", value: "" /* Enter your app key here */ },
-    ]).then((responseBody) => {
-      return JSON.parse(responseBody)
-        .stopPoints.map(function (entity) {
-          return { naptanId: entity.naptanId, commonName: entity.commonName };
-        })
-        .slice(0, count);
-    });
+    ]);
+    return JSON.parse(responseBody)
+      .stopPoints.map(function (entity) {
+        return { naptanId: entity.naptanId, commonName: entity.commonName };
+      })
+      .slice(0, count);
   }
 
   ///////////
   // Run
   ///////////
 
-  run() {
+  async run() {
     const that = this;
-    // Prompt postcode
-    that
-      .promptForPostcode()
-      .then((postcode) => that.formatPostcode(postcode))
-      .then((formattedPostcode) =>
-        that.getLocationForPostCode(formattedPostcode)
-      )
-      .then((location) =>
-        that.getNearestStopPoints(location.latitude, location.longitude, 5)
-      )
-      .then((nearestStops) => that.displayStopPoints(nearestStops))
-      .catch((error) => {
-        console.log(`There has been an error: ${error}`);
-      });
+    try {
+      const postcode = await that.promptForPostcode();
+      const formattedPostcode = that.formatPostcode(postcode);
+      const location = await that.getLocationForPostCode(formattedPostcode);
+      const nearestStops = await that.getNearestStopPoints(
+        location.latitude,
+        location.longitude,
+        5
+      );
+      return that.displayStopPoints(nearestStops);
+    } catch (error) {
+      console.log(`There has been an error: ${error}`);
+    }
   }
 }
