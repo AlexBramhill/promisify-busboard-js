@@ -38,9 +38,10 @@ export default class ConsoleRunner {
 
   promptForPostcode() {
     return new Promise(function (resolve) {
-      readline.question("\nEnter your postcode: ", (postcode) =>
-        resolve(postcode)
-      );
+      readline.question("\nEnter your postcode: ", (postcode) => {
+        resolve(postcode);
+        readline.close();
+      });
     });
   }
 
